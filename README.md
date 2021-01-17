@@ -16,6 +16,7 @@
 ## manager
     doesn't care where come from
 ### memory pool
+    fixed-size mempool --> memblock(self explain in address and every block head, for multi memblock manager in multi-thread/process situation) --> array
     flex-size --> fixed-size + map
 ### thread pool
     user-space --> coroutine/protothread
@@ -147,6 +148,29 @@ https://stackoverflow.com/questions/4630377/explain-the-difference-between-a-dat
 （迸发）concurrency, from spsc to mpmc(the producer/consumer or writer/reader module), or MT-safe/reentrant as a function.
 
 - lock-free --> wait-free
+``` c
+// lock
+lock(v)
+do A;
+unlock(v)
+
+// lock --> cas
+if (try_lock(v))
+  {if (equal(v, a))
+    {swap(v, b);
+    do A;}
+  else
+    {do B;}
+  unlock(v);}
+else
+  {do B;}
+
+// cas
+if (cas(v, a, b))
+  do A;
+else
+  do B;
+```
 - dealer/router?(the data has a destination in multi-consumer situation, however, we can use a pub/sub module, that all consumer can receive the data)
 
 and there are some special use, eg. in some streaming buffer, consumers do not take when writer want to write(overlay), they use rcu mechanism (delete but free later)
@@ -209,5 +233,5 @@ https://blog.csdn.net/yanghan1222/article/details/80275755
   https://github.com/userpro/MemoryPool
   https://github.com/dcshi/ncx_mempool
   fixed size mempool(无依赖) --> mempool(list等依赖)
-  故lock-free合集可以先开发fixed-size mempool，再开发table(hash/list/...)和fifo，其内存malloc可以用mempool管理，再用这两个开发flex-size mempool/threadpool/...
+  故lock-free库可以先开发fixed-size mempool，再开发table(hash/list/...)和fifo，其malloc可以用mempool管理，再用这两个开发flex-size mempool/threadpool/...
   ```
