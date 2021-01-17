@@ -1,0 +1,4 @@
+# do not trace build dirs
+build
+out
+dist

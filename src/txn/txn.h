@@ -1,6 +1,8 @@
 /* 
  * Written by Josh Dybnis and released to the public domain, as explained at
  * http://creativecommons.org/licenses/publicdomain
+ *
+ * txn is the abbr of transaction (operation in database)
  */
 #ifndef TXN_H
 #define TXN_H

@@ -1,9 +1,11 @@
 
 # 工程模块
 projects = [
-  "//lrbuf:lib",
-  "//lrbuf:demo",
-#   "//lrbuf:test",
+  "//src:lib",
+  # "//src:runtime",
+  # "//src:datatype",
+  # "//src:map",
+  # "//src:txn",
   
 #   "//cutest:frame",
 ]

@@ -1,0 +1,81 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+static_library("lib") {
+  deps = [
+    ":map",
+  ]
+}
+
+source_set("runtime") {
+  include_dirs = [ 
+    "runtime",
+  ]
+
+  sources = [
+    "runtime/runtime.c",
+    "runtime/rcu.c",
+    "runtime/lwt.c",
+    "runtime/mem.c",
+    "runtime/random.c",
+    # "runtime/hazard.c",
+  ]
+
+  sources += [
+    "runtime/common.h",
+  ]
+}
+
+source_set("datatype") {
+  include_dirs = [ 
+    "runtime", # TODO take from deps
+    "datatype",
+  ]
+
+  sources = [
+    "datatype/nstring.c",
+  ]
+
+  deps = [
+    ":runtime",
+  ]
+}
+
+source_set("map") {
+  include_dirs = [ 
+    "runtime",
+    "datatype",
+    "map",
+  ]
+
+  sources = [
+    "map/map.c",
+    "map/list.c",
+    "map/skiplist.c",
+    "map/hashtable.c",
+  ]
+
+  deps = [
+    ":datatype",
+    ":runtime",
+  ]
+}
+
+source_set("txn") {
+  include_dirs = [ 
+    "runtime",
+    "datatype",
+    "map",
+    "txn",
+  ]
+
+  sources = [
+    "txn/txn.c",
+  ]
+
+  deps = [
+    ":runtime",
+    ":map",
+  ]
+}
