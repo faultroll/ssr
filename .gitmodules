@@ -1,0 +1,4 @@
+[submodule "gn"]
+	path = gn
+	url = git@github.com:faultroll/buildtools.git
+	branch = gn

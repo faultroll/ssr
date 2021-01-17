@@ -1,0 +1,39 @@
+
+# 工程模块
+projects = [
+  "//lrbuf:lib",
+  "//lrbuf:demo",
+#   "//lrbuf:test",
+  
+#   "//cutest:frame",
+]
+
+group("gntest"){
+  deps = projects
+}
+
+# 过滤各平台相关代码实现
+# if (is_win) {
+#     set_sources_assignment_filter([ 
+#         "*_posix.h", "*_posix.cc",
+#         "*_mac.h", "*_mac.cc", "*_mac.mm",
+#         "*_android.h", "*_android.cc",
+#         "*_jni.h", "*_jni.cc",
+#     ])
+# } 
+# if (is_mac) {
+#     set_sources_assignment_filter([ 
+#         "*_win.cc", "*_win.h", 
+#         "*_posix.h", "*_posix.cc",
+#         "*_android.h", "*_android.cc",
+#         "*_jni.h", "*_jni.cc",
+#     ])
+# } 
+# if (is_linux) {
+#     set_sources_assignment_filter([ 
+#         "*_win.cc", "*_win.h",
+#         "*_mac.h", "*_mac.cc", "*_mac.mm",
+#         "*_android.h", "*_android.cc",
+#         "*_jni.h", "*_jni.cc",
+#     ])
+# }

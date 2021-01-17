@@ -1,0 +1,5 @@
+buildconfig = "//gn/config/BUILDCONFIG.gn"
+
+default_args = {
+    is_debug = false
+}
