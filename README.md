@@ -189,8 +189,6 @@ https://stidio.github.io/2017/01/cpp11_atomic_and_lockfree_program/
 https://blog.csdn.net/weiwangchao_/article/details/51492823
 https://blog.csdn.net/u013074465/article/details/47748619
 https://github.com/boostcon/2011_presentations/tree/master/wed
-rcu: https://github.com/urcu/userspace-rcu
-hazard pointer: https://www.cnblogs.com/catch/p/5129586.html
 lock-free MPSC(multi-producer-single-consumer) queue
 ibm freelist(CAS): https://github.com/RossBencina/QueueWorld/blob/master/ALGORITHMS.txt
 https://blog.csdn.net/lqt641/article/details/55058137
@@ -213,7 +211,18 @@ https://www.zhihu.com/question/55764216
 Multiprocessors and Thread-Level Parallelism
 https://ocw.nctu.edu.tw/course_detail-v.php?bgid=9&gid=0&nid=238
 https://blog.csdn.net/yanghan1222/article/details/80275755
-
+rcu/tinyrcu
+https://zhuanlan.zhihu.com/p/89439043
+https://blog.csdn.net/wendowswd/article/details/90575606
+https://www.cnblogs.com/bbqzsl/archive/2004/01/13/6842258.html
+https://lwn.net/Articles/541037/
+https://github.com/urcu/userspace-rcu
+rcu本质是write-block的rwlock（read-block）
+其模型上就是个pub/sub，write == publisher，reader == subscriber
+每次writer执行synchronize_rcu就是发布变更（之前的操作叫做update），而发布变更要等之前进入rcu_read_lock的全部reader都读完，再执行后续语句（之后的操作叫reclaim）
+如果需要不阻塞的write，就用call_rcu，把reclaim的操作放到单独地方（线程）做，如果是做free操作，其实就类似gc（user-driven）
+rcu_assign_pointer/rcu_dereference完全没有必要（作用是做update操作内的同步）
+hazard pointer: https://www.cnblogs.com/catch/p/5129586.html
 ```
 
 ## target
