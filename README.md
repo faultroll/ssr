@@ -98,6 +98,7 @@ https://kazmax.zpp.jp/cmd/t/tsearch.3.html
     https://www.cnblogs.com/fuzhe1989/p/3650303.html
     https://github.com/bhhbazinga/LockFreeHashTable
     https://github.com/LPD-EPFL/ASCYLIB
+    https://github.com/concurrencykit/ck
     ```
 
 - seq
@@ -244,3 +245,13 @@ hazard pointer: https://www.cnblogs.com/catch/p/5129586.html
   fixed size mempool(无依赖) --> mempool(list等依赖)
   故lock-free库可以先开发fixed-size mempool，再开发table(hash/list/...)和fifo，其malloc可以用mempool管理，再用这两个开发flex-size mempool/threadpool/...
   ```
+
+# manager
+
+## threadpool
+
+```
+threadpool本质就是workqueue，一个mpmc的queue，多个thread取，哪个取到就哪个做这个job，thread越多就是取得越快
+把threadpool和coroutine结合起来，看本质，就是user-space kernel，thread/core/cpu即worker，coroutine/thread即job，需要在job内手动yield，表示job中断，然后将job重新投回threadpool内（送到workqueue），下次resume（resume前需判断status，否则送入queue但未yield时resume会有问题）时便从中断处继续（需要保存context），哪个worker继续不影响job，这个流程不就是kernel的thread模型么？
+```
+
