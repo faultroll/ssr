@@ -2,3 +2,6 @@
 	path = gn
 	url = git@github.com:faultroll/buildtools.git
 	branch = gn
+[submodule "src/runtime/ssmem"]
+	path = src/runtime/ssmem
+	url = git@github.com:faultroll/ssmem.git
