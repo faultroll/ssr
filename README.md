@@ -224,6 +224,23 @@ rcu本质是write-block的rwlock（read-block）
 如果需要不阻塞的write，就用call_rcu，把reclaim的操作放到单独地方（线程）做，如果是做free操作，其实就类似gc（user-driven）
 rcu_assign_pointer/rcu_dereference完全没有必要（作用是做update操作内的同步）
 hazard pointer: https://www.cnblogs.com/catch/p/5129586.html
+epoch && rcu
+http://www.yebangyu.org/blog/2016/09/09/epochbasedreclamation/
+https://blog.csdn.net/solotzg/article/details/81050368
+https://www.zhihu.com/question/406428296
+https://stackoverflow.com/questions/36573370/quiescent-state-based-reclamation-vs-epoch-based-reclamation
+https://aturon.github.io/blog/2015/08/27/epoch/
+https://www.cnblogs.com/kekec/p/13795984.html
+https://blog.csdn.net/zhangyifei216/article/details/52767236
+http://www.read.seas.harvard.edu/cs161/2019/lectures/lecture18/
+https://github.com/krakjoe/apcu/issues/345
+https://gitee.com/mutouyun/lock-free-queue/tree/master
+http://chonghw.github.io/
+https://stackoverflow.com/questions/2599238/are-memory-barriers-necessary-for-atomic-reference-counting-shared-immutable-dat
+https://github.com/rmind/libqsbr
+https://github.com/mpoeter/emr
+barrier: https://stackoverflow.com/questions/16975935/whats-the-purpose-of-compiler-barrier
+gc: https://stackoverflow.com/questions/17646509/why-do-garbage-collectors-wait-before-deallocating
 ```
 
 ## target
