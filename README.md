@@ -147,9 +147,14 @@ https://stackoverflow.com/questions/4630377/explain-the-difference-between-a-dat
 ## performance
 
 （迸发）concurrency, from spsc to mpmc(the producer/consumer or writer/reader module), or MT-safe/reentrant as a function.
+concurrency需要考虑3个部分的同步(sync): w和w, r和r, w和r
 
-- lock-free --> wait-free
+- lock-free/CAS --> wait-free
+
+主要解决w和w，r和r之间的同步（当然也需要考虑w和r之间的同步，但这部分不能完全解决）
+
 ``` c
+// pattern: https://github.com/dryman/atomic_patterns
 // lock
 lock(v)
 do A;
@@ -172,15 +177,6 @@ if (cas(v, a, b))
 else
   do B;
 ```
-- dealer/router?(the data has a destination in multi-consumer situation, however, we can use a pub/sub module, that all consumer can receive the data)
-
-and there are some special use, eg. in some streaming buffer, consumers do not take when writer want to write(overlay), they use rcu mechanism (delete but free later)
-
-other old thinkings
-```
-lock-free本质是用户态的spinlock（cas），跟coroutine一样，最大的用处是高迸发的情况下，减少/防止用户态和内核态/上下文切换
-```
-reference
 ```
 wait-free
 https://www.zhihu.com/question/295904223
@@ -209,9 +205,68 @@ https://www.cnblogs.com/shangdawei/p/3917117.html
 https://winddoing.github.io/post/50889.html
 https://blog.csdn.net/binling/article/details/50419103
 https://www.zhihu.com/question/55764216
+没有所谓的cas_u64，只有cas和dwcas（double word/wide），mcas/dcas是多个cas操作合为1个
+需要用到的atomic操作主要为ptr(addr)和flag，如CAS/FAA/TAS，需要注意word和int/size_t/intptr_t等关系及int和intptr_t不一定相等
+sizeof word: https://stackoverflow.com/questions/35843365/how-to-detect-machine-word-size-in-c-c
 Multiprocessors and Thread-Level Parallelism
 https://ocw.nctu.edu.tw/course_detail-v.php?bgid=9&gid=0&nid=238
 https://blog.csdn.net/yanghan1222/article/details/80275755
+global lock（其实就是整个list内的lock而不是单个node struct内的lock）
+https://stackoverflow.com/questions/51893772/does-rcu-synchronization-hold-only-a-global-lock-for-all-readers-of-different-da
+https://stackoverflow.com/questions/229565/what-is-a-good-pattern-for-using-a-global-mutex-in-c
+https://stackoverflow.com/questions/2332765/lock-mutex-semaphore-whats-the-difference
+```
+
+- atomic
+
+```
+c11 stdatomic: http://ericnode.info/post/atomic_in_c11/
+https://github.com/zenny-chen/C11-atomic-operations-in-detail
+https://github.com/cdschreiber/c11
+https://blog.codingnow.com/2021/01/skynet_stdatomic.html
+c11 threads: https://stackoverflow.com/questions/14289634/thread-local-storage-class-specifier-in-c
+```
+volatile (跟atomic无关)
+```
+https://stackoverflow.com/questions/42182435/volatile-for-signal-handler-and-multi-threading
+https://stackoverflow.com/questions/2484980/why-is-volatile-not-considered-useful-in-multithreaded-c-or-c-programming
+https://www.airs.com/blog/archives/154
+https://stackoverflow.com/questions/34521620/force-read-of-volatile-variable
+https://stackoverflow.com/questions/8819095/concurrency-atomic-and-volatile-in-c11-memory-model
+https://stackoverflow.com/questions/39358761/taking-a-semaphore-must-be-atomic-is-pintoss-sema-down-safe
+```
+
+- dealer/router?(the data has a destination in multi-consumer situation, however, we can use a pub/sub module, that all consumer can receive the data)
+
+and there are some special use, eg. in some streaming buffer, consumers do not take when writer want to write(overlay), they use rcu mechanism (delete but free later)
+
+```
+lock-free本质是用户态的spinlock（cas），跟coroutine一样，最大的用处是高迸发的情况下，减少/防止用户态和内核态/上下文切换
+```
+
+- (non-blocking) memory reclamation
+
+主要解决w和r之间的同步
+
+```
+mr有两种方案，一个是带gc的mempool，另一个是reader告知可以reclaim，即qsbr/epoch/hazardptr/...
+https://stackoverflow.com/questions/40818465/explain-michael-scott-lock-free-queue-alorigthm
+https://rusnikola.github.io
+https://github.com/Pslydhh/PslyAlgorithm
+https://github.com/mpoeter/xenium/
+http://libcds.sourceforge.net/
+hazard pointer: https://segmentfault.com/a/1190000012053016
+http://ticki.github.io/blog/fearless-concurrency-with-hazard-pointers/
+epoch: https://zhuanlan.zhihu.com/p/266025428
+https://stackoverflow.com/questions/36573370/quiescent-state-based-reclamation-vs-epoch-based-reclamation
+https://github.com/microsoft/L4
+ref count: https://stidio.github.io/2017/01/cpp11_atomic_and_lockfree_program/
+https://stackoverflow.com/questions/10074030/lock-free-reference-counting
+https://stackoverflow.com/questions/37286702/lock-free-reference-counting-and-c-smart-pointers
+可以将ref变量放在node内，此时rw_lock即ref++，rw_unlock即ref--
+fast/slow path: https://blog.csdn.net/City_of_skey/article/details/84641308
+https://stackoverflow.com/questions/45970525/is-the-example-in-the-membarrier-man-page-pointless-in-x86
+https://stackoverflow.com/questions/52351397/is-there-a-penalty-when-baseoffset-is-in-a-different-page-than-the-base
 rcu/tinyrcu
 https://zhuanlan.zhihu.com/p/89439043
 https://blog.csdn.net/wendowswd/article/details/90575606
