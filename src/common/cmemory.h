@@ -1,0 +1,5 @@
+
+MEMORY_ALLOC
+MEMORY_FREE
+
+MPOOL_XXX // memory pool

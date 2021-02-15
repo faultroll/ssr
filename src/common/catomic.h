@@ -1,81 +1,50 @@
 
 // https://en.cppreference.com/w/c/atomic
 
-ATOMIC_CAS // cannot swap struct, need to be force convert to _Atomic(xxx) (eg. struct {uint8_t, uint8_t} ==> uint16_t)
-ATOMIC_FAA
-
-ATOMIC_STOR
-ATOMIC_LOAD
-
-ATOMIC_FLAG
-ATOMIC_TAS // test and set
-ATOMIC_CLR // clear
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) \
     && !defined(__STDC_NO_ATOMICS__)
-#   include <stdatomic.h>
-#elif defined(_MSC_VER) && (_MSC_VER >= 1800) /* Visual Studio 2013 */ \
-    && (defined(_M_X64) || defined(_M_IX86))
-#   define USE_TEMPORARY_MSVC_WORKAROUND 1
+    #define _USE_STD
+    // #elif defined(_MSC_VER) && (_MSC_VER >= 1800) /* Visual Studio 2013 */ \
+    //     && (defined(_M_X64) || defined(_M_IX86))
+    //     #define USE_MSVC
+    //     #define USE_CLANG
+    //     #define USE_GCC
 #else
-#   error Atomic operations are not supported on your platform
+    #define _USE_NONE
 #endif /* __STDC_NO_ATOMICS__ */
 
+// #undef _USE_STD
+// #define _USE_NONE
 
-#ifdef __STDC_NO_ATOMICS__
-
-#define ATOM_INT int
-#define ATOM_POINTER void *
-#define ATOM_SIZET size_t
-#define ATOM_ULONG unsigned long
-#define ATOM_INIT(ptr, v) (*(ptr) = v)
-#define ATOM_LOAD(ptr) (*(ptr))
-#define ATOM_STORE(ptr, v) (*(ptr) = v)
-#define ATOM_CAS(ptr, oval, nval) __sync_bool_compare_and_swap(ptr, oval, nval)
-#define ATOM_CAS_POINTER(ptr, oval, nval) __sync_bool_compare_and_swap(ptr, oval, nval)
-#define ATOM_FINC(ptr) __sync_fetch_and_add(ptr, 1)
-#define ATOM_FDEC(ptr) __sync_fetch_and_sub(ptr, 1)
-#define ATOM_FADD(ptr,n) __sync_fetch_and_add(ptr, n)
-#define ATOM_FSUB(ptr,n) __sync_fetch_and_sub(ptr, n)
-#define ATOM_FAND(ptr,n) __sync_fetch_and_and(ptr, n)
-
-#else
-
-#include <stdatomic.h>
-
-#define ATOM_INT atomic_int
-#define ATOM_POINTER atomic_uintptr_t
-#define ATOM_SIZET atomic_size_t
-#define ATOM_ULONG atomic_ulong
-#define ATOM_INIT(ref, v) atomic_init(ref, v)
-#define ATOM_LOAD(ptr) atomic_load(ptr)
-#define ATOM_STORE(ptr, v) atomic_store(ptr, v)
-#define ATOM_CAS(ptr, oval, nval) atomic_compare_exchange_weak(ptr, &(oval), nval)
-#define ATOM_CAS_POINTER(ptr, oval, nval) atomic_compare_exchange_weak(ptr, &(oval), nval)
-#define ATOM_FINC(ptr) atomic_fetch_add(ptr, 1)
-#define ATOM_FDEC(ptr) atomic_fetch_sub(ptr, 1)
-#define ATOM_FADD(ptr,n) atomic_fetch_add(ptr, n)
-#define ATOM_FSUB(ptr,n) atomic_fetch_sub(ptr, n)
-#define ATOM_FAND(ptr,n) atomic_fetch_and(ptr, n)
-
+#if defined(_USE_STD)
+    #include <stdatomic.h>
+    // var
+    #define ATOMIC_VAR(_type) _Atomic(_type)
+    // #define ATOMIC_VAR_INIT(_val)
+    #define ATOMIC_VAR_CAS(_ptr, _optr, _nval) atomic_compare_exchange_weak((_ptr), (_optr), (_nval))
+    #define ATOMIC_VAR_FAA(_ptr, _val) atomic_fetch_add((_ptr), (_val))
+    #define ATOMIC_VAR_STOR(_ptr, _val) atomic_store((_ptr), (_val))
+    #define ATOMIC_VAR_LOAD(_ptr) atomic_load(_ptr)
+    // flag
+    #define ATOMIC_FLAG volatile atomic_flag
+    // #define ATOMIC_FLAG_INIT
+    #define ATOMIC_FLAG_TAS(_ptr) atomic_flag_test_and_set(_ptr)
+    #define ATOMIC_FLAG_CLR(_ptr) atomic_flag_clear(_ptr)
+#elif defined(_USE_NONE)
+    // var
+    #define ATOMIC_VAR(_type) _type
+    #define ATOMIC_VAR_INIT(_val) (_val)
+    #define ATOMIC_VAR_CAS(_ptr, _optr, _nval) ({ bool __ret = false; if (*((uintptr_t *)_optr) == *(uintptr_t *)(_ptr)) { *(_ptr) = (_nval); __ret = true; } __ret; })
+    #define ATOMIC_VAR_FAA(_ptr, _val) ({ typeof(*(_ptr)) __oval = *(_ptr); *(_ptr) += (_val); __oval; })
+    #define ATOMIC_VAR_STOR(_ptr, _val) (void)(*(_ptr) = (_val))
+    #define ATOMIC_VAR_LOAD(_ptr) (*(_ptr))
+    // flag
+    #define ATOMIC_FLAG bool
+    #define ATOMIC_FLAG_INIT (false)
+    #define ATOMIC_FLAG_TAS(_ptr) ({ bool __oval = *(_ptr); if (!__oval) { *(_ptr) = true; } __oval; })
+    #define ATOMIC_FLAG_CLR(_ptr) (void)({ *(_ptr) = false; })
 #endif
-
-#define SYNC_SWAP(addr,x)         ({ typeof(*(addr)) _old = *(addr); *(addr)  = (x); _old; })
-#define SYNC_CAS(addr,old,x)      ({ typeof(*(addr)) _old = *(addr); *(addr)  = (x); _old; })
-//#define SYNC_CAS(addr,old,x)    ({ typeof(*(addr)) _old = *(addr); if ((old) == _old) { *(addr)  = (x); } _old; })
-#define SYNC_ADD(addr,n)          ({ typeof(*(addr)) _old = *(addr); *(addr) += (n); _old; })
-#define SYNC_FETCH_AND_OR(addr,x) ({ typeof(*(addr)) _old = *(addr); *(addr) |= (x); _old; })
-
-#define ATOMIC_VAR_INIT(value)      (value)
-#define atomic_init(object, value)  (void)(*(object) = (value))
-
-#ifdef __GNUC__
-#define atomic_store(object, desired)   (void)( *(volatile typeof(*(object)) *)(object) = (desired) )
-#define atomic_load(object)             *(volatile typeof(*(object)) *)(object)
-#else
-#define atomic_store(object, desired)   (void)(*(object) = (desired))
-#define atomic_load(object)             *(object)
-#endif
-
-#define ATOMIC_FLAG_INIT { 0 }
-

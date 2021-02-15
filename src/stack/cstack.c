@@ -2,8 +2,7 @@
 #include "cstack.h"
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdatomic.h>
-// #include "catomic.h" // atomic wrapper
+#include "catomic.h"
 
 typedef struct _cstack_node_s_ cstack_node_s;
 typedef struct _cstack_head_s_ cstack_head_s;
@@ -13,13 +12,13 @@ struct _cstack_node_s_ {
     cstack_node_s *next;
 };
 struct _cstack_head_s_ {
-    uintptr_t aba;
     cstack_node_s *node;
+    uintptr_t aba; // TODO not use DWCAS
 };
 struct _cstack_s_ {
     cstack_node_s *node_buffer;
-    _Atomic cstack_head_s head, free;
-    _Atomic size_t size;
+    ATOMIC_VAR(cstack_head_s) head, free;
+    ATOMIC_VAR(size_t) size;
 };
 
 cstack_s *cstack_init(size_t size)
@@ -28,7 +27,7 @@ cstack_s *cstack_init(size_t size)
     if (NULL == stack)
         return stack;
 
-    cstack_head_s head_init = {0, NULL};
+    cstack_head_s head_init = {NULL, 0};
     stack->head = ATOMIC_VAR_INIT(head_init);
     stack->size = ATOMIC_VAR_INIT(0);
 
@@ -43,7 +42,7 @@ cstack_s *cstack_init(size_t size)
         stack->node_buffer[i].next = stack->node_buffer + i + 1;
     stack->node_buffer[size - 1].next = NULL;
 
-    cstack_head_s free_init = {0, stack->node_buffer};
+    cstack_head_s free_init = {stack->node_buffer, 0};
     stack->free = ATOMIC_VAR_INIT(free_init);
 
     return stack;
@@ -57,30 +56,30 @@ void cstack_free(cstack_s *stack)
 
 size_t cstack_size(cstack_s *stack)
 {
-    return atomic_load(&stack->size);
+    return ATOMIC_VAR_LOAD(&stack->size);
 }
 
-static cstack_node_s *__pop(_Atomic cstack_head_s *head)
+static cstack_node_s *__pop(ATOMIC_VAR(cstack_head_s) *head)
 {
-    cstack_head_s next, orig = atomic_load(head);
+    cstack_head_s next, orig = ATOMIC_VAR_LOAD(head);
     do {
         if (orig.node == NULL)
             return NULL;
         next.aba = orig.aba + 1;
         next.node = orig.node->next;
-    } while (!atomic_compare_exchange_weak(head, &orig, next));
+    } while (!ATOMIC_VAR_CAS(head, &orig, next));
 
     return orig.node;
 }
 
-static void __push(_Atomic cstack_head_s *head, cstack_node_s *node)
+static void __push(ATOMIC_VAR(cstack_head_s) *head, cstack_node_s *node)
 {
-    cstack_head_s next, orig = atomic_load(head);
+    cstack_head_s next, orig = ATOMIC_VAR_LOAD(head);
     do {
         node->next = orig.node;
         next.aba = orig.aba + 1;
         next.node = node;
-    } while (!atomic_compare_exchange_weak(head, &orig, next));
+    } while (!ATOMIC_VAR_CAS(head, &orig, next));
 }
 
 int cstack_push(cstack_s *stack, void *value)
@@ -90,7 +89,7 @@ int cstack_push(cstack_s *stack, void *value)
         return -1;
     node->value = value;
     __push(&stack->head, node);
-    atomic_fetch_add(&stack->size, 1);
+    ATOMIC_VAR_FAA(&stack->size, 1);
 
     return 0;
 }
@@ -100,7 +99,7 @@ void *cstack_pop(cstack_s *stack)
     cstack_node_s *node = __pop(&stack->head);
     if (node == NULL)
         return NULL;
-    atomic_fetch_sub(&stack->size, 1);
+    ATOMIC_VAR_FAA(&stack->size, -1);
     void *value = node->value;
     __push(&stack->free, node);
 

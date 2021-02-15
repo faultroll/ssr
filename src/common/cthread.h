@@ -15,3 +15,4 @@ THREAD_TLS // thread local storage
 THREAD_YIELD
 THREAD_ONCE
 
+TPOOL_XXX // thread pool

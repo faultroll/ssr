@@ -206,8 +206,9 @@ https://winddoing.github.io/post/50889.html
 https://blog.csdn.net/binling/article/details/50419103
 https://www.zhihu.com/question/55764216
 没有所谓的cas_u64，只有cas和dwcas（double word/wide），mcas/dcas是多个cas操作合为1个
-需要用到的atomic操作主要为ptr(addr)和flag，如CAS/FAA/TAS，需要注意word和int/size_t/intptr_t等关系及int和intptr_t不一定相等
-sizeof word: https://stackoverflow.com/questions/35843365/how-to-detect-machine-word-size-in-c-c
+需要用到的atomic操作主要为ptr(addr)和flag，如CAS/FAA/TAS，需要注意word和int/size_t/intptr_t等关系及int和intptr_t不一定相等 (The C standard does not know what a word is)
+sizeof word: https://stackoverflow.com/questions/9988663/c-word-size-and-standard-size
+https://stackoverflow.com/questions/35843365/how-to-detect-machine-word-size-in-c-c
 Multiprocessors and Thread-Level Parallelism
 https://ocw.nctu.edu.tw/course_detail-v.php?bgid=9&gid=0&nid=238
 https://blog.csdn.net/yanghan1222/article/details/80275755
