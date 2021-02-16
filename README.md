@@ -186,6 +186,8 @@ https://stidio.github.io/2017/01/cpp11_atomic_and_lockfree_program/
 https://blog.csdn.net/weiwangchao_/article/details/51492823
 https://blog.csdn.net/u013074465/article/details/47748619
 https://github.com/boostcon/2011_presentations/tree/master/wed
+https://alexpolt.github.io/atomic-data.html
+Lock-free Stack：https://nullprogram.com/blog/2014/09/02/
 lock-free MPSC(multi-producer-single-consumer) queue
 ibm freelist(CAS): https://github.com/RossBencina/QueueWorld/blob/master/ALGORITHMS.txt
 https://blog.csdn.net/lqt641/article/details/55058137
@@ -193,9 +195,9 @@ zerocopy：https://github.com/je-so/iqueue
 每个writer一个queue，readers搜索所有queue（传送带模型？）：https://github.com/cameron314/concurrentqueue
 https://moodycamel.com/blog
 ABA problem：https://blog.csdn.net/yinkailin/article/details/79012532
-Lock-free Stack：https://nullprogram.com/blog/2014/09/02/
-atomic, -latomic：https://en.cppreference.com/w/c/atomic
-https://stackoverflow.com/questions/30591313/why-does-g-still-require-latomic
+https://www.stroustrup.com/isorc2010.pdf
+https://lumian2015.github.io/lockFreeProgramming/aba-problem.html
+https://community.intel.com/t5/Intel-C-Compiler/CAS-on-multi-core/td-p/876386
 win32: https://docs.microsoft.com/en-us/windows/win32/dxtecharts/lockless-programming
 cas&aba in database: https://blog.csdn.net/wufaliang003/article/details/78797203
 cas and (ticket) spinlock: https://zhuanlan.zhihu.com/p/80727111
@@ -225,6 +227,8 @@ c11 stdatomic: http://ericnode.info/post/atomic_in_c11/
 https://github.com/zenny-chen/C11-atomic-operations-in-detail
 https://github.com/cdschreiber/c11
 https://blog.codingnow.com/2021/01/skynet_stdatomic.html
+atomic, -latomic：https://en.cppreference.com/w/c/atomic
+https://stackoverflow.com/questions/30591313/why-does-g-still-require-latomic
 c11 threads: https://stackoverflow.com/questions/14289634/thread-local-storage-class-specifier-in-c
 ```
 volatile (跟atomic无关)

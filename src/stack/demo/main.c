@@ -64,7 +64,7 @@ int main()
         .min_results = 4096,
         .nzeros = 2
     };
-    job.results = cstack_init(job.min_results + nthreads);
+    job.results = cstack_alloc(job.min_results + nthreads);
 
     /* Spawn threads. */
     pthread_t threads[nthreads];

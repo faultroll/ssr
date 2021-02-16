@@ -13,7 +13,7 @@ struct _cstack_node_s_ {
 };
 struct _cstack_head_s_ {
     cstack_node_s *node;
-    uintptr_t aba; // TODO not use DWCAS
+    uintptr_t aba;
 };
 struct _cstack_s_ {
     cstack_node_s *node_buffer;
@@ -21,7 +21,7 @@ struct _cstack_s_ {
     ATOMIC_VAR(size_t) size;
 };
 
-cstack_s *cstack_init(size_t size)
+cstack_s *cstack_alloc(size_t size)
 {
     cstack_s *stack = malloc(sizeof(cstack_s));
     if (NULL == stack)
@@ -35,6 +35,7 @@ cstack_s *cstack_init(size_t size)
     stack->node_buffer = malloc(size * sizeof(cstack_node_s));
     if (stack->node_buffer == NULL) {
         free(stack);
+        stack = NULL;
         return stack;
     }
 
@@ -64,7 +65,7 @@ static cstack_node_s *__pop(ATOMIC_VAR(cstack_head_s) *head)
     cstack_head_s next, orig = ATOMIC_VAR_LOAD(head);
     do {
         if (orig.node == NULL)
-            return NULL;
+            break;
         next.aba = orig.aba + 1;
         next.node = orig.node->next;
     } while (!ATOMIC_VAR_CAS(head, &orig, next));

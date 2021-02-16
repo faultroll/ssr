@@ -8,7 +8,7 @@
 
 typedef struct _cstack_s_ cstack_s;
 
-cstack_s   *cstack_init(size_t size);
+cstack_s   *cstack_alloc(size_t size);
 void        cstack_free(cstack_s *stack);
 size_t      cstack_size(cstack_s *stack);
 int         cstack_push(cstack_s *stack, void *value);
