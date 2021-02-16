@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "cstack.h"
+#include "clifo.h"
 #include "catomic.h"
 
 static ATOMIC_VAR(int) g_wait = -1;
 
 struct job {
-    cstack_s *results;
+    clifo_s *results;
     size_t min_results;
 };
 
@@ -24,8 +24,8 @@ void *worker(void *arg)
     ATOMIC_VAR_FAA(&g_wait, -1);
     do {} while (g_wait);
 
-    while (tries-- && cstack_size(job->results) < job->min_results) {
-        if (cstack_push(job->results, (void *)(intptr_t)(++i)) != 0) {
+    while (tries-- && clifo_size(job->results) < job->min_results) {
+        if (clifo_push(job->results, (void *)(intptr_t)(++i)) != 0) {
             printf("(%d) push error\n", pthread_self());
             abort();
         } else {
@@ -33,7 +33,7 @@ void *worker(void *arg)
             total_push += i;
         }
 
-        if ((j = (int)(intptr_t)cstack_pop(job->results)) == (intptr_t)NULL) {
+        if ((j = (int)(intptr_t)clifo_pop(job->results)) == (intptr_t)NULL) {
             // printf("(%d) pop error\n", pthread_self());
             continue;
         } else {
@@ -55,7 +55,7 @@ int main()
         .results = NULL,
         .min_results = 4096,
     };
-    job.results = cstack_alloc(job.min_results + nthreads);
+    job.results = clifo_alloc(job.min_results + nthreads);
     g_wait = nthreads;
 
     /* Spawn threads. */
@@ -68,12 +68,12 @@ int main()
         pthread_join(threads[i], NULL);
 
     int remain, total_remain = 0;
-    while ((remain = (int)(intptr_t)cstack_pop(job.results)) != (intptr_t)NULL) {
+    while ((remain = (int)(intptr_t)clifo_pop(job.results)) != (intptr_t)NULL) {
         total_remain += remain;
     }
     printf("remain total: (%d)\n", total_remain);
 
-    cstack_free(job.results);
+    clifo_free(job.results);
 
     return 0;
 }

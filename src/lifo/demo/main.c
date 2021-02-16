@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "sha1.h"
-#include "cstack.h"
+#include "clifo.h"
 
 struct job {
-    cstack_s *results;
+    clifo_s *results;
     size_t min_results, nzeros;
 };
 
@@ -41,14 +41,14 @@ void *worker(void *arg)
     struct job *job = arg;
     uint8_t buffer[SHA1_DIGEST_SIZE], output[SHA1_DIGEST_SIZE];
     fillrandom(buffer, sizeof(buffer)); // seed
-    while (cstack_size(job->results) < job->min_results) {
+    while (clifo_size(job->results) < job->min_results) {
         hash(buffer, output);
         if (memcmp(output, EMPTY, job->nzeros) == 0) {
             unsigned char *copy = malloc(SHA1_DIGEST_SIZE);
             if (copy == NULL)
                 abort();
             memcpy(copy, buffer, SHA1_DIGEST_SIZE);
-            if (cstack_push(job->results, copy) != 0)
+            if (clifo_push(job->results, copy) != 0)
                 abort();
         }
         memcpy(buffer, output, SHA1_DIGEST_SIZE);
@@ -64,7 +64,7 @@ int main()
         .min_results = 4096,
         .nzeros = 2
     };
-    job.results = cstack_alloc(job.min_results + nthreads);
+    job.results = clifo_alloc(job.min_results + nthreads);
 
     /* Spawn threads. */
     pthread_t threads[nthreads];
@@ -74,7 +74,7 @@ int main()
 
     /* Monitor progress */
     size_t nresults, last = -1;
-    while ((nresults = cstack_size(job.results)) < job.min_results) {
+    while ((nresults = clifo_size(job.results)) < job.min_results) {
         if (nresults != last)
             fprintf(stderr, "\033[0GFound %zd hashes ...", nresults);
         last = nresults;
@@ -82,12 +82,12 @@ int main()
     }
     for (int i = 0; i < nthreads; i++)
         pthread_join(threads[i], NULL);
-    nresults = cstack_size(job.results);
+    nresults = clifo_size(job.results);
     fprintf(stderr, "\033[0G\033[KFound %zd hashes.\n", nresults);
 
     /* Print results */
     unsigned char *content;
-    while ((content = cstack_pop(job.results)) != NULL) {
+    while ((content = clifo_pop(job.results)) != NULL) {
         print_hash(content);
         free(content);
     }
