@@ -11,7 +11,7 @@ struct _cfifo_node_s_ {
     void *value;
 };
 struct _cfifo_s_ {
-    int magic;
+    // int magic;
     // ATOMIC_VAR(bool) inited;
     ATOMIC_VAR(size_t) head, tail;
     ATOMIC_VAR(size_t) sentinel; // update after tail, avoiding w/w race
@@ -19,7 +19,7 @@ struct _cfifo_s_ {
     ARRAY_VAR(cfifo_node_s) buffer;
 };
 
-#define CFIFO_MAGIC ('f' << 24 | 'i' << 16 | 'f' << 8 | 'o' << 0)
+// #define CFIFO_MAGIC ('f' << 24 | 'i' << 16 | 'f' << 8 | 'o' << 0)
 
 cfifo_s *cfifo_alloc(size_t size)
 {
@@ -29,7 +29,7 @@ cfifo_s *cfifo_alloc(size_t size)
         return fifo;
     ARRAY_BOUND(&fifo->buffer) = size;
 
-    fifo->magic = CFIFO_MAGIC;
+    // fifo->magic = CFIFO_MAGIC;
     ATOMIC_VAR_STOR(&fifo->head, 0);
     ATOMIC_VAR_STOR(&fifo->tail, 0);
     ATOMIC_VAR_STOR(&fifo->sentinel, 0);

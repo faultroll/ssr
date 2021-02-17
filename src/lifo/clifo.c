@@ -4,8 +4,92 @@
 #include <stdlib.h>
 #include "catomic.h"
 
+// only CAS needed, not done yet
+// https://github.com/javaf/elimination-backoff-stack
+// https://github.com/mxinden/elimination-backoff-stack
+// https://blog.csdn.net/weixin_45839894/article/details/105321818
+
 typedef struct _clifo_node_s_ clifo_node_s;
-typedef struct _clifo_head_s_ clifo_head_s;
+
+struct _clifo_node_s_ {
+    void *value;
+};
+struct _clifo_s_ {
+    // int magic;
+    // ATOMIC_VAR(bool) inited;
+    ATOMIC_VAR(size_t) head;
+    ARRAY_VAR(clifo_node_s) buffer;
+};
+
+// #define CLIFO_MAGIC ('l' << 24 | 'i' << 16 | 'f' << 8 | 'o' << 0)
+
+clifo_s *clifo_alloc(size_t size)
+{
+    clifo_s *lifo = malloc(sizeof(clifo_s) + ARRAY_SIZE(clifo_node_s, size));
+    if (NULL == lifo)
+        return lifo;
+    ARRAY_BOUND(&lifo->buffer) = size;
+
+    // lifo->magic = CLIFO_MAGIC;
+    ATOMIC_VAR_STOR(&lifo->head, 0);
+
+    // ATOMIC_VAR_STOR(&lifo->inited, true);
+
+    return lifo;
+}
+
+void clifo_free(clifo_s *lifo)
+{
+    free(lifo);
+}
+
+size_t clifo_size(clifo_s *lifo)
+{
+    return ATOMIC_VAR_LOAD(&lifo->head);
+}
+
+int clifo_push(clifo_s *lifo, void *value)
+{
+    // if (NULL == lifo || lifo->magic != CLIFO_MAGIC || !ATOMIC_VAR_LOAD(&lifo->inited))
+    //     return;
+
+    size_t size = ARRAY_BOUND(&lifo->buffer);
+    size_t head = 0;
+    do {
+        head = ATOMIC_VAR_LOAD(&lifo->head);
+        if (head == size - 1)
+            // full
+            return -1;
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head + 1));
+    // change value after head update, avoiding w/w race
+    ARRAY_ARRAY(&lifo->buffer)[head].value = value;
+
+    return 0;
+}
+
+void *clifo_pop(clifo_s *lifo)
+{
+    // if (NULL == lifo || lifo->magic != CLIFO_MAGIC || !ATOMIC_VAR_LOAD(&lifo->inited))
+    //     return;
+
+    void *value = NULL;
+    size_t size = ARRAY_BOUND(&lifo->buffer);
+    size_t head = 0;
+    do {
+        head = ATOMIC_VAR_LOAD(&lifo->head);
+        if (head == 0)
+            // empty
+            return NULL;
+        // change value before head update, avoiding r/w race
+        value = ARRAY_ARRAY(&lifo->buffer)[head].value;
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head - 1));
+
+    return value;
+}
+
+#if 0 /* implement using list */
+
+// from https://github.com/skeeto/lstack, DWCAS needed
 
 struct _clifo_node_s_ {
     void *value;
@@ -106,3 +190,5 @@ void *clifo_pop(clifo_s *lifo)
 
     return value;
 }
+
+#endif

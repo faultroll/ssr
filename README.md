@@ -200,6 +200,8 @@ https://lumian2015.github.io/lockFreeProgramming/aba-problem.html
 https://community.intel.com/t5/Intel-C-Compiler/CAS-on-multi-core/td-p/876386
 win32: https://docs.microsoft.com/en-us/windows/win32/dxtecharts/lockless-programming
 cas&aba in database: https://blog.csdn.net/wufaliang003/article/details/78797203
+Treiber stack suffer aba problem: https://stackoverflow.com/questions/46415027/c-treiber-stack-and-atomic-next-pointers
+https://gpetri.github.io/MPRI-2017/index.html
 cas and (ticket) spinlock: https://zhuanlan.zhihu.com/p/80727111
 https://github.com/cyfdecyf/spinlock
 https://ruby-china.org/topics/37916

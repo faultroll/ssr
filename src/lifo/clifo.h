@@ -2,8 +2,6 @@
 #ifndef __CLIFO_H
 #define __CLIFO_H
 
-// from https://github.com/skeeto/lstack
-
 #include <stddef.h>
 
 typedef struct _clifo_s_ clifo_s;
