@@ -12,6 +12,10 @@
 #endif /* __STDC_NO_THREADS__ */
 
 THREAD_TLS // thread local storage
+// _Thread_local        // C11
+// __thread struct      // GCC and Clang
+// __declspec(thread)   // Visual Studio
+
 THREAD_YIELD
 THREAD_ONCE
 

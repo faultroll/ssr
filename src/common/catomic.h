@@ -8,11 +8,13 @@
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) \
     && !defined(__STDC_NO_ATOMICS__)
     #define _USE_STD
-    // #elif defined(_MSC_VER) && (_MSC_VER >= 1800) /* Visual Studio 2013 */ \
-    //     && (defined(_M_X64) || defined(_M_IX86))
-    //     #define USE_MSVC
-    //     #define USE_CLANG
-    //     #define USE_GCC
+#elif defined(_MSC_VER) && (_MSC_VER >= 1800) /* Visual Studio 2013 */ \
+    && (defined(_M_X64) || defined(_M_IX86))
+    #define USE_MSVC
+#elif defined(__clang__)
+    #define USE_CLANG
+#elif defined(__GNUC__)
+    #define USE_GCC
 #else
     #define _USE_NONE
 #endif /* __STDC_NO_ATOMICS__ */
