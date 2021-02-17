@@ -220,6 +220,8 @@ global lock（其实就是整个list内的lock而不是单个node struct内的lo
 https://stackoverflow.com/questions/51893772/does-rcu-synchronization-hold-only-a-global-lock-for-all-readers-of-different-da
 https://stackoverflow.com/questions/229565/what-is-a-good-pattern-for-using-a-global-mutex-in-c
 https://stackoverflow.com/questions/2332765/lock-mutex-semaphore-whats-the-difference
+backoff（退避）: https://blog.csdn.net/tronyy/article/details/78898265
+https://github.com/iiithf/concurrent-data-structures
 ```
 
 - atomic
