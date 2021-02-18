@@ -3,32 +3,42 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "catomic.h"
+#include "carray.h"
 
-// only CAS needed, not done yet
-// https://github.com/javaf/elimination-backoff-stack
-// https://blog.csdn.net/weixin_45839894/article/details/105321818
-// https://cs.nyu.edu/wies/teaching/ppc-14/material/lecture07.pdf
+// only CAS needed
+
+// node state
+enum {
+    NST_EMPTY,
+    NST_BUSY, // mutex, preempt
+    NST_FULL,
+};
+// lock type
+enum {
+    NST_PUSH,
+    NST_POP,
+};
+// static ATOMIC_VAR(int) g_pplock_cnt = 0;
+#define NST_PP_LOCK(_lock, _type) do { const int __old = (NST_PUSH == _type) ? NST_EMPTY : NST_FULL; while (!ATOMIC_VAR_CAS(&(_lock), &__old, NST_BUSY)) {} /* printf("(%d)(%d) lock (%d), cur (%d)\n", _type, ATOMIC_VAR_FAA(&g_pplock_cnt, 1), head, ATOMIC_VAR_LOAD(&_lock)); */ } while (0)
+#define NST_PP_UNLOCK(_lock, _type) do { const int __new = (NST_PUSH == _type) ? NST_FULL : NST_EMPTY; ATOMIC_VAR_STOR(&(_lock), __new); /* const int __old = NST_BUSY; while (!ATOMIC_VAR_CAS(&(_lock), &__old, __new)) { printf("(%d)(%d) unlock (%d) error, cur (%d)\n", _type, ATOMIC_VAR_FAA(&g_pplock_cnt, 1), head, ATOMIC_VAR_LOAD(&_lock)); } */ } while (0)
+// api
+#define NST_LOCK ATOMIC_VAR(int)
+#define NST_LOCK_INIT(_lock) ATOMIC_VAR_STOR(&(_lock), NST_EMPTY)
+#define NST_PUSH_LOCK(_lock) NST_PP_LOCK((_lock), NST_PUSH)
+#define NST_PUSH_UNLOCK(_lock) NST_PP_UNLOCK((_lock), NST_PUSH)
+#define NST_POP_LOCK(_lock) NST_PP_LOCK((_lock), NST_POP)
+#define NST_POP_UNLOCK(_lock) NST_PP_UNLOCK((_lock), NST_POP)
 
 typedef struct _clifo_node_s_ clifo_node_s;
 
 struct _clifo_node_s_ {
     void *value;
-    clifo_node_s *next;
-};
-struct _clifo_head_s_ {
-    clifo_node_s *node;
+    NST_LOCK lock;
 };
 struct _clifo_s_ {
-    // int magic;
-    // ATOMIC_VAR(bool) inited;
     ATOMIC_VAR(size_t) head;
     ARRAY_VAR(clifo_node_s) buffer;
-    EliminationArray<T> eliminationArray;
 };
-
-// #define CLIFO_MAGIC ('l' << 24 | 'i' << 16 | 'f' << 8 | 'o' << 0)
-#define CLIFO_XCHG_TRIES (5000); // use as timeout
-#define CLIFO_XCHG_BOUND (100); // capacity
 
 clifo_s *clifo_alloc(size_t size)
 {
@@ -37,13 +47,9 @@ clifo_s *clifo_alloc(size_t size)
         return lifo;
     ARRAY_BOUND(&lifo->buffer) = size;
 
-    // lifo->magic = CLIFO_MAGIC;
     ATOMIC_VAR_STOR(&lifo->head, 0);
-    eliminationArray = new EliminationArray<>(
-        CAPACITY, TIMEOUT, UNIT
-    );
-
-    // ATOMIC_VAR_STOR(&lifo->inited, true);
+    for (int i = 0; i < ARRAY_BOUND(&lifo->buffer); ++i)
+        NST_LOCK_INIT(ARRAY_ARRAY(&lifo->buffer)[i].lock);
 
     return lifo;
 }
@@ -59,6 +65,55 @@ size_t clifo_size(clifo_s *lifo)
 }
 
 int clifo_push(clifo_s *lifo, void *value)
+{
+    // https://blog.csdn.net/fulltopic/article/details/24480291
+    // dual-data structure
+    size_t size = ARRAY_BOUND(&lifo->buffer);
+    size_t head = 0;
+    do {
+        head = ATOMIC_VAR_LOAD(&lifo->head);
+        if (head == size - 1) {
+            // full
+            return -1;
+        }
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head + 1));
+
+    // printf("[%s] (%d): (%d)\n", __func__, head, (int)(intptr_t)value);
+    NST_PUSH_LOCK(ARRAY_ARRAY(&lifo->buffer)[head].lock);
+    ARRAY_ARRAY(&lifo->buffer)[head].value = value;
+    NST_PUSH_UNLOCK(ARRAY_ARRAY(&lifo->buffer)[head].lock);
+
+    return 0;
+}
+
+void *clifo_pop(clifo_s *lifo)
+{
+    // dual-data structure
+    void *value = NULL;
+    size_t size = ARRAY_BOUND(&lifo->buffer);
+    size_t head = 0;
+    do {
+        head = ATOMIC_VAR_LOAD(&lifo->head);
+        if (head == 0) {
+            // empty
+            return NULL;
+        }
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head - 1));
+
+    NST_POP_LOCK(ARRAY_ARRAY(&lifo->buffer)[head - 1].lock);
+    value = ARRAY_ARRAY(&lifo->buffer)[head - 1].value;
+    NST_POP_UNLOCK(ARRAY_ARRAY(&lifo->buffer)[head - 1].lock);
+    // printf("[%s] (%d): (%d)\n", __func__, head - 1, (int)(intptr_t)value);
+
+    return value;
+}
+
+/*
+
+// https://github.com/javaf/elimination-backoff-stack
+// https://blog.csdn.net/weixin_45839894/article/details/105321818
+// https://cs.nyu.edu/wies/teaching/ppc-14/material/lecture07.pdf
+
 {
     // 1. Create a new node with given value.
     // 2. Try pushing it to stack.
@@ -78,26 +133,8 @@ int clifo_push(clifo_s *lifo, void *value)
             // 4b
         }
     }
-
-    // https://blog.csdn.net/fulltopic/article/details/24480291
-    // dual-data structure
-    while (true) {
-        int i = top.getAndIncrement();
-        if (i > capacity - 1) {
-            // is stack full?
-            throw newFullException();
-        } else if (i >= 0) {
-            while (stack[i].full) {}
-            stack[i].value = value;
-            stack[i].full = true;
-            return 0; // push fulfilled
-        }
-    }
-
-    return 0;
 }
 
-void *clifo_pop(clifo_s *lifo)
 {
     // 1. Try popping a node from stack.
     // 2a. If successful, return node's value
@@ -114,20 +151,6 @@ void *clifo_pop(clifo_s *lifo)
                 return y;
         } catch (TimeoutException e) { // 3b
 
-        }
-    }
-
-    // dual-data structure
-    while (true) {
-        int i = top.getAndDecrement();
-        if (i < 0) {
-            // is stack empty?
-            throw newEmptyException();
-        } else if (i <= capacity - 1) {
-            while (!stack[i].full) {};
-            T value = stack[i].value;
-            stack[i].full = false;
-            return value; // pop fulfilled
         }
     }
 }
@@ -261,9 +284,7 @@ private T removeB()
         return null; // 1
     slot.set(null, EMPTY); // 2
     return x; // 2
-}
-
-
+} */
 
 /* class Node
 {
@@ -328,11 +349,7 @@ int pop()
     }
 } */
 
-
-
-#if 0 /* implement using list */
-
-// from https://github.com/skeeto/lstack, DWCAS needed
+/* // from https://github.com/skeeto/lstack, DWCAS needed
 
 struct _clifo_node_s_ {
     void *value;
@@ -358,7 +375,7 @@ clifo_s *clifo_alloc(size_t size)
     lifo->head = ATOMIC_VAR_INIT(head_init);
     lifo->size = ATOMIC_VAR_INIT(0);
 
-    /* Pre-allocate all nodes. */
+    // Pre-allocate all nodes.
     lifo->node_buffer = malloc(size * sizeof(clifo_node_s));
     if (lifo->node_buffer == NULL) {
         free(lifo);
@@ -432,6 +449,5 @@ void *clifo_pop(clifo_s *lifo)
     __push(&lifo->free, node);
 
     return value;
-}
+} */
 
-#endif

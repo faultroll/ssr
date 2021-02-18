@@ -45,7 +45,7 @@
     #define ATOMIC_VAR_STOR(_ptr, _val) (void)(*(_ptr) = (_val))
     #define ATOMIC_VAR_LOAD(_ptr) (*(_ptr))
     // flag
-    #define ATOMIC_FLAG bool
+    #define ATOMIC_FLAG volatile bool
     #define ATOMIC_FLAG_INIT (false)
     #define ATOMIC_FLAG_TAS(_ptr) ({ bool __oval = *(_ptr); if (!__oval) { *(_ptr) = true; } __oval; })
     #define ATOMIC_FLAG_CLR(_ptr) (void)({ *(_ptr) = false; })
