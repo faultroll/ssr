@@ -19,7 +19,7 @@ enum {
     NST_POP,
 };
 // static ATOMIC_VAR(int) g_pplock_cnt = 0;
-#define NST_PP_LOCK(_lock, _type) do { const int __old = (NST_PUSH == _type) ? NST_EMPTY : NST_FULL; while (!ATOMIC_VAR_CAS(&(_lock), &__old, NST_BUSY)) {} /* printf("(%d)(%d) lock (%d), cur (%d)\n", _type, ATOMIC_VAR_FAA(&g_pplock_cnt, 1), head, ATOMIC_VAR_LOAD(&_lock)); */ } while (0)
+#define NST_PP_LOCK(_lock, _type) do { int __old = (NST_PUSH == _type) ? NST_EMPTY : NST_FULL; while (!ATOMIC_VAR_CAS(&(_lock), &__old, NST_BUSY)) { __old = (NST_PUSH == _type) ? NST_EMPTY : NST_FULL; } /* printf("(%d)(%d) lock (%d), cur (%d)\n", _type, ATOMIC_VAR_FAA(&g_pplock_cnt, 1), head, ATOMIC_VAR_LOAD(&_lock)); */ } while (0)
 #define NST_PP_UNLOCK(_lock, _type) do { const int __new = (NST_PUSH == _type) ? NST_FULL : NST_EMPTY; ATOMIC_VAR_STOR(&(_lock), __new); /* const int __old = NST_BUSY; while (!ATOMIC_VAR_CAS(&(_lock), &__old, __new)) { printf("(%d)(%d) unlock (%d) error, cur (%d)\n", _type, ATOMIC_VAR_FAA(&g_pplock_cnt, 1), head, ATOMIC_VAR_LOAD(&_lock)); } */ } while (0)
 // api
 #define NST_LOCK ATOMIC_VAR(int)
@@ -48,8 +48,10 @@ clifo_s *clifo_alloc(size_t size)
     ARRAY_BOUND(&lifo->buffer) = size;
 
     ATOMIC_VAR_STOR(&lifo->head, 0);
-    for (int i = 0; i < ARRAY_BOUND(&lifo->buffer); ++i)
+    for (int i = 0; i < ARRAY_BOUND(&lifo->buffer); ++i) {
         NST_LOCK_INIT(ARRAY_ARRAY(&lifo->buffer)[i].lock);
+        ARRAY_ARRAY(&lifo->buffer)[i].value = NULL;
+    }
 
     return lifo;
 }
@@ -69,14 +71,15 @@ int clifo_push(clifo_s *lifo, void *value)
     // https://blog.csdn.net/fulltopic/article/details/24480291
     // dual-data structure
     size_t size = ARRAY_BOUND(&lifo->buffer);
-    size_t head = 0;
+    size_t head = 0, next = 0;
     do {
         head = ATOMIC_VAR_LOAD(&lifo->head);
         if (head == size - 1) {
             // full
             return -1;
         }
-    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head + 1));
+        next = head + 1;
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, next));
 
     // printf("[%s] (%d): (%d)\n", __func__, head, (int)(intptr_t)value);
     NST_PUSH_LOCK(ARRAY_ARRAY(&lifo->buffer)[head].lock);
@@ -91,19 +94,26 @@ void *clifo_pop(clifo_s *lifo)
     // dual-data structure
     void *value = NULL;
     size_t size = ARRAY_BOUND(&lifo->buffer);
-    size_t head = 0;
+    size_t head = 0, next = 0;
     do {
         head = ATOMIC_VAR_LOAD(&lifo->head);
         if (head == 0) {
             // empty
             return NULL;
         }
-    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, head - 1));
+        next = head - 1;
+    } while (!ATOMIC_VAR_CAS(&lifo->head, &head, next));
 
-    NST_POP_LOCK(ARRAY_ARRAY(&lifo->buffer)[head - 1].lock);
-    value = ARRAY_ARRAY(&lifo->buffer)[head - 1].value;
-    NST_POP_UNLOCK(ARRAY_ARRAY(&lifo->buffer)[head - 1].lock);
-    // printf("[%s] (%d): (%d)\n", __func__, head - 1, (int)(intptr_t)value);
+    NST_POP_LOCK(ARRAY_ARRAY(&lifo->buffer)[next].lock);
+int st1 = ARRAY_ARRAY(&lifo->buffer)[next].lock;
+    value = ARRAY_ARRAY(&lifo->buffer)[next].value;
+int st2 = ARRAY_ARRAY(&lifo->buffer)[next].lock;
+    if (0xdeadbeaf == (int)(intptr_t)value)
+        printf("[%s] (%d) trapped, state (%d, %d)\n", __func__,
+               next, st1, st2);
+    ARRAY_ARRAY(&lifo->buffer)[next].value = (void *)(intptr_t)(0xdeadbeaf);
+    NST_POP_UNLOCK(ARRAY_ARRAY(&lifo->buffer)[next].lock);
+    // printf("[%s] (%d): (%d)\n", __func__, next, (int)(intptr_t)value);
 
     return value;
 }
