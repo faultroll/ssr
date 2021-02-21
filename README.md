@@ -231,6 +231,9 @@ c11 stdatomic: http://ericnode.info/post/atomic_in_c11/
 https://github.com/zenny-chen/C11-atomic-operations-in-detail
 https://github.com/cdschreiber/c11
 https://blog.codingnow.com/2021/01/skynet_stdatomic.html
+cas区别：https://stackoverflow.com/questions/16043723/why-do-c11-cas-operations-take-two-pointer-parameters
+https://stackoverflow.com/questions/19986978/why-does-stdatomics-compare-exchange-take-a-reference-for-the-expected-value
+https://stackoverflow.com/questions/25199838/understanding-stdatomiccompare-exchange-weak-in-c11
 atomic, -latomic：https://en.cppreference.com/w/c/atomic
 https://stackoverflow.com/questions/30591313/why-does-g-still-require-latomic
 c11 threads: https://stackoverflow.com/questions/14289634/thread-local-storage-class-specifier-in-c

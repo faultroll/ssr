@@ -27,7 +27,7 @@
     // var
     #define ATOMIC_VAR(_type) _Atomic(_type)
     // #define ATOMIC_VAR_INIT(_val)
-    #define ATOMIC_VAR_CAS(_ptr, _optr, _nval) atomic_compare_exchange_weak((_ptr), (_optr), (_nval))
+    #define ATOMIC_VAR_CAS(_ptr, _oval, _nval) ({ __typeof__(_oval) __stand = _oval; atomic_compare_exchange_strong((_ptr), &__stand, _nval); })
     #define ATOMIC_VAR_FAA(_ptr, _val) atomic_fetch_add((_ptr), (_val))
     #define ATOMIC_VAR_STOR(_ptr, _val) atomic_store((_ptr), (_val))
     #define ATOMIC_VAR_LOAD(_ptr) atomic_load(_ptr)
@@ -40,8 +40,8 @@
     // var
     #define ATOMIC_VAR(_type) _type
     #define ATOMIC_VAR_INIT(_val) (_val)
-    #define ATOMIC_VAR_CAS(_ptr, _optr, _nval) ({ bool __ret = false; if (*((uintptr_t *)_optr) == *(uintptr_t *)(_ptr)) { *(_ptr) = (_nval); __ret = true; } __ret; })
-    #define ATOMIC_VAR_FAA(_ptr, _val) ({ typeof(*(_ptr)) __oval = *(_ptr); *(_ptr) += (_val); __oval; })
+    #define ATOMIC_VAR_CAS(_ptr, _oval, _nval) ({ bool __ret; if ((uintptr_t)_oval == *(uintptr_t *)(_ptr)) { *(_ptr) = (_nval); __ret = true; } else { __ret = false; } __ret; })
+    #define ATOMIC_VAR_FAA(_ptr, _val) ({ __typeof__(*(_ptr)) __oval = *(_ptr); *(_ptr) += (_val); __oval; })
     #define ATOMIC_VAR_STOR(_ptr, _val) (void)(*(_ptr) = (_val))
     #define ATOMIC_VAR_LOAD(_ptr) (*(_ptr))
     // flag

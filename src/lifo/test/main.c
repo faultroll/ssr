@@ -23,7 +23,7 @@ struct job {
 void *worker(void *arg)
 {
     struct job *job = arg;
-    int i = pthread_self() % 23, j = -1;
+    int i = (int)pthread_self() % 23, j = -1;
     int tries = MAX_TRIES;
     int total_pop = 0, total_push = 0;
     // int in[MAX_TRIES] = {0}, out[MAX_TRIES] = {0};
@@ -34,37 +34,37 @@ void *worker(void *arg)
     while (tries-- && clifo_size(job->results) < job->min_results) {
 #if 0 /* push first */
         if (clifo_push(job->results, (void *)(intptr_t)(++i)) != 0) {
-            printf("(%d) push error\n", pthread_self());
+            printf("(%d) push error\n", (int)pthread_self());
             abort();
         } else {
-            // printf("(%d) push (%d)\n", pthread_self(), i);
+            // printf("(%d) push (%d)\n", (int)pthread_self(), i);
             // in[tries] = i;
             total_push += i;
         }
 
         if ((j = (int)(intptr_t)clifo_pop(job->results)) == (intptr_t)NULL) {
-            printf("(%d) pop error\n", pthread_self());
+            printf("(%d) pop error\n", (int)pthread_self());
             // continue;
         } else {
-            // printf("(%d) pop (%d)\n", pthread_self(), j);
+            // printf("(%d) pop (%d)\n", (int)pthread_self(), j);
             // out[tries] = j;
             total_pop += j;
         }
 #else /* pop first */
         if ((j = (int)(intptr_t)clifo_pop(job->results)) == (intptr_t)NULL) {
-            printf("(%d) pop error\n", pthread_self());
+            printf("(%d) pop error\n", (int)pthread_self());
             // continue;
         } else {
-            // printf("(%d) pop (%d)\n", pthread_self(), j);
+            // printf("(%d) pop (%d)\n", (int)pthread_self(), j);
             // out[tries] = j;
             total_pop += j;
         }
 
         if (clifo_push(job->results, (void *)(intptr_t)(++i)) != 0) {
-            printf("(%d) push error\n", pthread_self());
+            printf("(%d) push error\n", (int)pthread_self());
             abort();
         } else {
-            // printf("(%d) push (%d)\n", pthread_self(), i);
+            // printf("(%d) push (%d)\n", (int)pthread_self(), i);
             // in[tries] = i;
             total_push += i;
         }
@@ -72,13 +72,13 @@ void *worker(void *arg)
     }
 
     SPIN_LOCK(g_spin);
-    printf("(%d) total: push (%d), pop (%d)\n", pthread_self(),
+    printf("(%d) total: push (%d), pop (%d)\n", (int)pthread_self(),
            total_push, total_pop);
-    // printf("(%d) push: (", pthread_self());
+    // printf("(%d) push: (", (int)pthread_self());
     // for (i = 0; i < MAX_TRIES; ++i)
     //     printf("%d, ", in[i]);
     // printf(")\n");
-    // printf("(%d) pop: (", pthread_self());
+    // printf("(%d) pop: (", (int)pthread_self());
     // for (i = 0; i < MAX_TRIES; ++i)
     //     printf("%d, ", out[i]);
     // printf(")\n");

@@ -63,13 +63,13 @@ int cfifo_push(cfifo_s *fifo, void *value)
         if ((tail + 1) % size == head % size)
             // full
             return -1;
-    } while (!ATOMIC_VAR_CAS(&fifo->tail, &tail, tail + 1));
+    } while (!ATOMIC_VAR_CAS(&fifo->tail, tail, tail + 1));
     // change value after tail update, avoiding w/w race
     ARRAY_ARRAY(&fifo->buffer)[tail % size].value = value;
 
     // then update sentinel to tell reader that writer is done
     size_t tick = 0;
-    while (!ATOMIC_VAR_CAS(&fifo->sentinel, &tail, tail + 1)) {
+    while (!ATOMIC_VAR_CAS(&fifo->sentinel, tail, tail + 1)) {
         if (++tick % 5000 == 0)
             // THREAD_YIELD
             ;
@@ -95,7 +95,7 @@ void *cfifo_pop(cfifo_s *fifo)
             return NULL;
         // change value before head update, avoiding r/w race
         value = ARRAY_ARRAY(&fifo->buffer)[head % size].value;
-    } while (!ATOMIC_VAR_CAS(&fifo->head, &head, head + 1));
+    } while (!ATOMIC_VAR_CAS(&fifo->head, head, head + 1));
 
     ATOMIC_VAR_FAA(&fifo->used, -1);
 
