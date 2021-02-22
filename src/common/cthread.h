@@ -20,3 +20,38 @@ THREAD_YIELD
 THREAD_ONCE
 
 TPOOL_XXX // thread pool
+
+// mutual exclusion
+
+#if defined(_USE_PTHREAD)
+
+#elif defined(_USE_STD)
+
+// mtx_t
+
+#elif defined(_USE_FUTEX)
+
+#elif defined(_USE_ATOMIC)
+// node state
+enum {
+    NST_EMPTY,
+    NST_BUSY, // mutex, preempt
+    NST_FULL,
+};
+// lock type
+enum {
+    NST_PUSH,
+    NST_POP,
+};
+// static ATOMIC_VAR(int) g_pplock_cnt = 0;
+#define NST_PP_LOCK(_lock, _type) do { const int __oval = (NST_PUSH == _type) ? NST_EMPTY : NST_FULL, __nval = NST_BUSY; do {} while (!ATOMIC_VAR_CAS(&(_lock), __oval, __nval)); } while (0)
+#define NST_PP_UNLOCK(_lock, _type) do { const int __nval = (NST_PUSH == _type) ? NST_FULL : NST_EMPTY; ATOMIC_VAR_STOR(&(_lock), __nval); } while (0)
+// api
+#define NST_LOCK ATOMIC_VAR(int)
+#define NST_LOCK_INIT(_lock) ATOMIC_VAR_STOR(&(_lock), NST_EMPTY)
+
+static ATOMIC_FLAG g_spin = ATOMIC_FLAG_INIT;
+#define SPIN_LOCK(_lock) do { while (!ATOMIC_FLAG_TAS(&(_lock))) {} } while (0)
+#define SPIN_UNLOCK(_lock) do { ATOMIC_FLAG_CLR(&(_lock)); } while (0)
+
+#endif
