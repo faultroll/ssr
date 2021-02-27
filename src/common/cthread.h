@@ -16,7 +16,12 @@ THREAD_TLS // thread local storage
 // __thread struct      // GCC and Clang
 // __declspec(thread)   // Visual Studio
 
-THREAD_YIELD
+
+THREAD_YIELD() 
+thread_yield_fast sched_yield
+thread_yield_slow nanosleep
+
+
 THREAD_ONCE
 
 TPOOL_XXX // thread pool
@@ -50,6 +55,7 @@ enum {
 #define NST_LOCK ATOMIC_VAR(int)
 #define NST_LOCK_INIT(_lock) ATOMIC_VAR_STOR(&(_lock), NST_EMPTY)
 
+// http://blog.kongfy.com/2017/01/%E7%94%A8%E6%88%B7%E6%80%81%E5%90%8C%E6%AD%A5%E4%B9%8B%E8%87%AA%E6%97%8B%E9%94%81/
 static ATOMIC_FLAG g_spin = ATOMIC_FLAG_INIT;
 #define SPIN_LOCK(_lock) do { while (!ATOMIC_FLAG_TAS(&(_lock))) {} } while (0)
 #define SPIN_UNLOCK(_lock) do { ATOMIC_FLAG_CLR(&(_lock)); } while (0)

@@ -5,6 +5,8 @@
 #include "catomic.h"
 #include "carray.h"
 
+// https://www.cnblogs.com/shines77/p/4192787.html
+
 typedef struct _cfifo_node_s_ cfifo_node_s;
 
 struct _cfifo_node_s_ {
