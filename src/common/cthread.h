@@ -14,12 +14,18 @@
 THREAD_TLS // thread local storage
 // _Thread_local        // C11
 // __thread struct      // GCC and Clang
-// __declspec(thread)   // Visual Studio
+// __declspec(thread)   // MSVC
 
 
-THREAD_YIELD() 
-thread_yield_fast sched_yield
+THREAD_YIELD
+thread_yield_fast thrd_yield // C11
+thread_yield_fast sched_yield // pthread
+thread_yield_fast SwitchToThread // MSVC
+thread_yield_fast taskDelay // rtos
+
 thread_yield_slow nanosleep
+
+
 
 
 THREAD_ONCE
