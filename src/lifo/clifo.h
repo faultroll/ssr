@@ -12,4 +12,4 @@ size_t      clifo_size(clifo_s *lifo);
 int         clifo_push(clifo_s *lifo, void *value);
 void       *clifo_pop(clifo_s *lifo);
 
-#endif /* __CSTACK_H */
+#endif /* __CLIFO_H */

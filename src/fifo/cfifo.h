@@ -12,4 +12,4 @@ size_t      cfifo_size(cfifo_s *fifo);
 int         cfifo_push(cfifo_s *fifo, void *value);
 void       *cfifo_pop(cfifo_s *fifo);
 
-#endif /* __CSTACK_H */
+#endif /* __CFIFO_H */
