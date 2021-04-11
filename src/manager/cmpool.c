@@ -4,134 +4,142 @@
 #include <stdlib.h>
 #include "catomic.h"
 
-// TODO use one as lifo
+// TODO use same as lifo
 enum {
     NST_EMPTY,
     NST_USED,
 };
 
-struct buffer_node {
-    uint64_t offset;
-    uint32_t state;
-    uint32_t size;
-    uint32_t usedsize;
-    uint32_t refcount;
-}
+typedef struct _cmpool_node_s_ {
+    ptrdiff_t offset;
+    ATOMIC_VAR(int) state;
+    ATOMIC_VAR(int) refcount;
+    // size_t size;
+    // size_t usedsize;
+} cmpool_node_s;
 
-struct buffer {
-    uint64_t magic;
-    uint32_t blknum;
-    uint32_t usednum;
-    uint32_t blksz;
-    uint32_t recentusedidx;
-};
+typedef struct _cmpool_head_s_ {
+    ATOMIC_VAR(int) magic;
+    size_t blksz;
+    ATOMIC_VAR(int) latestidx;
+    // size_t usednum;
+    ptrdiff_t blockbase;
+    size_t blknum;
+    cmpool_node_s index[];
+} cmpool_head_s;
 
-cmpool_s *cmpool_init(size_t blknum, size_t blksz)
+typedef struct _cmpool_s_ {
+    void *mbase;
+    size_t msize;
+} cmpool_s;
+
+#define CMPOOL_MAGIC ('m' << 24 | 'p' << 16 | 'l' << 8 | '\0' << 0)
+
+cmpool_s *cmpool_init(void *mbase, size_t msize, size_t blksz)
 {
-    uint64_t blockbase = sizeof(struct buffer) +
-                         maxblocknum * sizeof(struct buffer_node);
-    uint64_t totalmemsize = sizeof(struct buffer) +
-                            maxblocknum * sizeof(struct buffer_node) +
-                            blknum * blksz;
-    m_pbufbase = malloc(totalmemsize);
-    // m_pbufbase->magic = ;
-    m_pbufbase->blknum = blknum;
-    m_pbufbase->usednum = 0;
-    m_pbufbase->blksz = blksz;
-    m_pbufbase->recentusedidx = 0;
-    m_pstatebase = m_pbufbase + sizeof(struct buffer);
-    for (uint32_t iblock = 0; iblock < blknum; ++iblock) {
-        m_pstatebase[iblock].offset = blockbase + iblock * blksz;
-        m_pstatebase[iblock].state = BUF_EMPTY;
-        m_pstatebase[iblock].size = blksz;
-        m_pstatebase[iblock].refcount = 0;
-    }
+    cmpool_s *mpool = malloc(sizeof(cmpool_s));
+    mpool->mbase = mbase;
+    mpool->msize = msize;
+
+    cmpool_head_s *head = (cmpool_head_s *)mpool->mbase;
+    if ((int dirty = ATOMIC_VAR_LOAD(&head->magic)) != CMPOOL_MAGIC) {
+        // TODO may race with alloc
+        head->blksz = blksz;
+        ATOMIC_VAR_STOR(&head->latestidx, 0);
+        head->blknum = (msize - sizeof(cmpool_head_s)) /
+                       (blksz + sizeof(cmpool_node_s));
+        head->blockbase = sizeof(cmpool_head_s) +
+                          head->blknum * sizeof(cmpool_node_s);
+        for (size_t i = 0; i < head->blknum; ++i) {
+            head->index[i].offset = blockbase + i * head->blksz;
+            ATOMIC_VAR_STOR(&head->index[i].state, NST_EMPTY);
+            ATOMIC_VAR_STOR(&head->index[i].refcount, 0);
+            // head->index[i].size = blksz;
+        }
+        if (!ATOMIC_VAR_CAS(&head->magic, dirty, CMPOOL_MAGIC)) {
+            // TODO will failed when changed from dirty to another value
+            /* return mpool; */
+        } /* else {
+            return mpool;
+        } */
+    } /* else {
+        return mpool;
+    } */
+
+    return mpool;
 }
 
 void cmpool_fini(cmpool_s *mpool)
 {
-    free(m_pbufbase);
+    free(mpool);
+}
+
+static int regbufidx(cmpool_head_s *head, size_t size)
+{
+    cmpool_head_s *pbuf = head;
+    cmpool_node_s *pnode = pbuf->index;
+    int idx = ATOMIC_VAR_LOAD(&pbuf->latestidx) + 1,
+        max_idx = pbuf->blknum;
+    if (/* idx >= 0 && */ idx < max_idx) {
+        if (ATOMIC_CAS(&pnode[idx].state, NST_EMPTY, NST_USED)) {
+            // pnode[idx].usedsize = 0;
+            ATOMIC_VAR_STOR(&pbuf->latestidx, idx);
+            // ATOMIC_FAA(&pbuf->usednum, 1);
+            return idx;
+        }
+    }
+
+    for (idx = 0; idx < max_id; ++idx) {
+        if (ATOMIC_CAS(&pnode[idx].state, NST_EMPTY, NST_USED)) {
+            // pnode[idx].usedsize = 0;
+            ATOMIC_VAR_STOR(&pbuf->latestidx, idx);
+            // ATOMIC_FAA(&pbuf->usednum, 1);
+            return idx;
+        }
+    }
+
+    return -1;
+}
+
+static void unregbufidx(cmpool_head_s *head, int idx)
+{
+    cmpool_head_s *pbuf = head;
+    cmpool_node_s *pnode = pbuf->index;
+    int max_idx = pbuf->blknum;
+    if (idx >= 0 && idx < max_idx) {
+        if (ATOMIC_CAS(&pnode[idx].state, NST_USED, NST_EMPTY)) {
+            // pnode[idx].usedsize = 0;
+            // ATOMIC_FAA(&pbuf->usednum, -1);
+        }
+    }
+}
+
+static void *getbufaddr(cmpool_head_s *head, int idx)
+{
+    cmpool_head_s *pbuf = head;
+    cmpool_node_s *pnode = pbuf->index;
+    int max_idx = pbuf->blknum;
+
+    if (idx >= 0 && idx < max_idx)
+        return (void *)((intptr_t)pbuf + pnode[idx].offset);
+    else
+        return NULL;
+}
+
+static int getbufidx(cmpool_head_s *head, void *ptr)
+{
+    cmpool_head_s *pbuf = head;
+    cmpool_node_s *pnode = pbuf->index;
+
+    return (int)(((intptr_t)ptr - (intptr_t)pbuf - pbuf->blockbase) / pbuf->blksz);
 }
 
 void *cmpool_alloc(cmpool_s *mpool, size_t size)
 {
-    return getbufaddr(regbufidx(size));
+    return getbufaddr(mpool->mbase, regbufidx(mpool->mbase, size));
 }
 
 void cmpool_free(cmpool_s *mpool, void *ptr)
 {
-    unregbufidx(getbufidx(ptr));
-}
-
-static int32_t regbufidx(uint32_t size)
-{
-    struct buffer *pbuf = (struct buffer *)m_pbufbase;
-    struct buffer_node *pnode = (struct buffer_node *)m_pstatebase;
-    int id = pbuf->recentusedidx + 1, // TODO atomic_load
-        max_idx = pbuf->blknum;
-    if (id >= 0 && id < max_idx && (BUF_EMPTY == pnode[id].state)) {
-        if (ATOMIC_CAS(&pnode[id].state, BUF_EMPTY, BUF_USED)) {
-            pnode[id].usedsize = 0;
-            pbuf->recentusedidx = id; // TODO atomic_store needed
-            ATOMIC_FAA(&pbuf->usednum, 1);
-            return id;
-        }
-    }
-
-    for (id = 0; id < max_id; ++id) {
-        if (pnode[id].state != BUF_EMPTY)
-            continue;
-        if (ATOMIC_CAS(&pnode[id].state, BUF_EMPTY, BUF_USED)) {
-            pnode[id].usedsize = 0;
-            pbuf->recentusedidx = id; // TODO atomic_store needed
-            ATOMIC_FAA(&pbuf->usednum, 1);
-            return id;
-        }
-    }
-
-    return -1;
-}
-
-static int32_t unregbufidx(int32_t idx)
-{
-    struct buffer *pbuf = (struct buffer *)m_pbufbase;
-    struct buffer_node *pnode = (struct buffer_node *)m_pstatebase;
-    int max_idx = pbuf->blknum;
-    if (id >= 0 && id < max_idx && (BUF_USED == pnode[id].state)) {
-        if (ATOMIC_CAS(&pnode[id].state, BUF_USED, BUF_EMPTY)) {
-            pnode[id].usedsize = 0;
-            ATOMIC_FAA(&pbuf->usednum, -1);
-            return id;
-        }
-    }
-
-    return -1;
-}
-
-static void *getbufaddr(int32_t idx)
-{
-    struct buffer *pbuf = (struct buffer *)m_pbufbase;
-    struct buffer_node *pnode = (struct buffer_node *)m_pstatebase;
-
-    return (pbuf + pnode[idx].offset);
-}
-
-static int32_t getbufidx(void *ptr)
-{
-    struct buffer *pbuf = (struct buffer *)m_pbufbase;
-    struct buffer_node *pnode = (struct buffer_node *)m_pstatebase;
-
-    uint64_t offset = sizeof(struct buffer) +
-                      pbuf->blknum * sizeof(struct buffer_node);
-    int32_t idx = (uint32_t)((char *)ptr - pbuf - offset) / pbuf->blksz;
-
-    return idx;
-}
-
-static uint32_t getbufsize(int32_t idx)
-{
-    struct buffer *pbuf = (struct buffer *)m_pbufbase;
-    struct buffer_node *pnode = (struct buffer_node *)m_pstatebase;
-
-    return (pbuf + pnode[idx].size);
+    unregbufidx(mpool->mbase, getbufidx(mpool->mbase, ptr));
 }
